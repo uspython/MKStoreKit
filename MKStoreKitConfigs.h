@@ -42,18 +42,18 @@
 // #define FishBasket @"FishBasket"
 
 #ifndef SERVER_PRODUCT_MODEL
-    #define SERVER_PRODUCT_MODEL 0
+    #define SERVER_PRODUCT_MODEL 1
 #endif
 
 #ifndef OWN_SERVER
-    #define OWN_SERVER nil
+    #define OWN_SERVER @"https://i.hanwenbook.com/ssl.aspx"
 #endif
 
 #ifndef REVIEW_ALLOWED
-    #define REVIEW_ALLOWED 0
+    #define REVIEW_ALLOWED 1
 #endif
 
-#warning Shared Secret Missing Ignore this warning if you don't use auto-renewable subscriptions
+//#warning Shared Secret Missing Ignore this warning if you don't use auto-renewable subscriptions
 #ifndef kSharedSecret
     #define kSharedSecret @"<FILL IN YOUR SHARED SECRET HERE>"
 #endif

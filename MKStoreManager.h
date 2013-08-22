@@ -36,6 +36,8 @@
 #import <Foundation/Foundation.h>
 #import <StoreKit/StoreKit.h>
 #import "MKStoreKitConfigs.h"
+#import "WMRequest.h"
+
 
 #define kReceiptStringKey @"MK_STOREKIT_RECEIPTS_STRING"
 
@@ -49,7 +51,7 @@
 #define kSubscriptionsPurchasedNotification @"MKStoreKitSubscriptionsPurchased"
 #define kSubscriptionsInvalidNotification @"MKStoreKitSubscriptionsInvalid"
 
-@interface MKStoreManager : NSObject<SKProductsRequestDelegate, SKPaymentTransactionObserver>
+@interface MKStoreManager : NSObject<SKProductsRequestDelegate, SKPaymentTransactionObserver,WMRequestDelegate>
 
 // These are the methods you will be using in your app
 + (MKStoreManager*)sharedManager;
@@ -90,5 +92,6 @@
 +(id) receiptForKey:(NSString*) key;
 +(void) setObject:(id) object forKey:(NSString*) key;
 +(NSNumber*) numberForKey:(NSString*) key;
-
+-(void)requestProductIDsFromHanWenOnComplete:(void (^)(NSArray* theProducts))completionBlock
+                                        onError:(void (^)(NSError* error)) errorBlock;;
 @end

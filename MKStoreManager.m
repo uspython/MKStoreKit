@@ -49,10 +49,14 @@
 
 
 @interface MKStoreManager () //private methods and properties
+{
+    WMRequest* requestWM;
+}
 
 @property (nonatomic, copy) void (^onTransactionCancelled)();
 @property (nonatomic, copy) void (^onTransactionCompleted)(NSString *productId, NSData* receiptData, NSArray* downloads);
-
+@property (nonatomic, copy) void (^onRequestCompleted)(NSArray* products);
+@property (nonatomic, copy) void (^onRequestFailed)(NSError* error);
 @property (nonatomic, copy) void (^onRestoreFailed)(NSError* error);
 @property (nonatomic, copy) void (^onRestoreCompleted)();
 
@@ -437,28 +441,29 @@ static MKStoreManager* _sharedStoreManager;
   self.onTransactionCompleted = completionBlock;
   self.onTransactionCancelled = cancelBlock;
   
-  [MKSKProduct verifyProductForReviewAccess:featureId
-                                 onComplete:^(NSNumber * isAllowed)
-   {
-     if([isAllowed boolValue])
-     {
-       [self showAlertWithTitle:NSLocalizedString(@"Review request approved", @"")
-                        message:NSLocalizedString(@"You can use this feature for reviewing the app.", @"")];
-       
-       if(self.onTransactionCompleted)
-         self.onTransactionCompleted(featureId, nil, nil);
-     }
-     else
-     {
-       [self addToQueue:featureId];
-     }
-     
-   }
-                                    onError:^(NSError* error)
-   {
-     NSLog(@"Review request cannot be checked now: %@", [error description]);
-     [self addToQueue:featureId];
-   }];
+    [self addToQueue:featureId];
+//  [MKSKProduct verifyProductForReviewAccess:featureId
+//                                 onComplete:^(NSNumber * isAllowed)
+//   {
+//     if([isAllowed boolValue])
+//     {
+//       [self showAlertWithTitle:NSLocalizedString(@"Review request approved", @"")
+//                        message:NSLocalizedString(@"You can use this feature for reviewing the app.", @"")];
+//       
+//       if(self.onTransactionCompleted)
+//         self.onTransactionCompleted(featureId, nil, nil);
+//     }
+//     else
+//     {
+//       [self addToQueue:featureId];
+//     }
+//     
+//   }
+//                                    onError:^(NSError* error)
+//   {
+//     NSLog(@"Review request cannot be checked now: %@", [error description]);
+//     [self addToQueue:featureId];
+//   }];
 }
 
 -(void) addToQueue:(NSString*) productId
@@ -831,4 +836,29 @@ static MKStoreManager* _sharedStoreManager;
 }
 #endif
 
+#pragma mark - Request Products
+-(void)requestProductIDsFromHanWenOnComplete:(void (^)(NSArray *))completionBlock
+                                     onError:(void (^)(NSError *))errorBlock
+{
+    self.onRequestCompleted = [completionBlock copy];
+    self.onRequestFailed = [errorBlock copy];
+    
+    requestWM = [WMRequest requestWithAPIID:@"20" andDelegate:self];
+    requestWM.tag = 20;
+    [requestWM startAsyncRequest];
+}
+
+
+#pragma mark - WMRequeast Delegate Methods
+-(void)request:(WMRequest *)theRequest didFailed:(NSError *)theError
+{
+    self.onRequestFailed(theError);
+}
+-(void)request:(WMRequest *)theRequest didLoadResultFromJsonString:(id)result
+{
+    if([result objectForKey:@"data"]){
+        NSArray* array = [result valueForKeyPath:@"data.products"];
+        self.onRequestCompleted(array);
+    }
+}
 @end

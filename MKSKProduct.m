@@ -30,6 +30,7 @@
 //	4) A paypal donation to mugunth.kumar@gmail.com
 
 #import "MKSKProduct.h"
+#import "AXSConnect.h"
 
 #import "NSData+MKBase64.h"
 
@@ -45,6 +46,13 @@ static void (^onReviewRequestVerificationSucceeded)();
 static void (^onReviewRequestVerificationFailed)();
 static NSURLConnection *sConnection;
 static NSMutableData *sDataFromConnection;
+//static WMRequest *requestWMS;
+
+@interface MKSKProduct ()
+{
+}
+
+@end
 
 @implementation MKSKProduct
 
@@ -304,4 +312,58 @@ didReceiveResponse:(NSURLResponse *)response
     onReviewRequestVerificationFailed = nil;
   }
 }
+
+#pragma mark - 修改过的验证方法，使用WMRequest.h
+
+//-(void)verifyProductFromHanwenForReviewAccess:(NSString *)productId onComplete:(void (^)(NSNumber *))completionBlock onError:(void (^)(NSError *))errorBlock
+//{
+//    
+//    if(REVIEW_ALLOWED)
+//    {
+//        onReviewRequestVerificationSucceeded = [completionBlock copy];
+//        onReviewRequestVerificationFailed = [errorBlock copy];
+//        self.theRequest = [WMRequest requestWithAPIID:@"20" andDelegate:self];
+//        [self.theRequest startAsyncRequest];
+//    }
+//    else
+//    {
+//        completionBlock([NSNumber numberWithBool:NO]);
+//    }
+//}
+
+-(void)verifyReceiptFromHanWenOnComplete:(void (^)(void))completionBlock
+                                 onError:(void (^)(NSError *))errorBlock
+{
+    //购买验证
+    self.onReceiptVerificationSucceeded = completionBlock;
+    self.onReceiptVerificationFailed = errorBlock;
+    
+    self.theRequestWM = [WMRequest requestWithAPIID:@"22" andDelegate:self];
+    self.theRequestWM.tag = 22;
+    [self.theRequestWM startAsyncRequest];
+}
+-(void)getTranscationSerialNumOnComplete:(void (^)(void))completionBlock
+                                 onError:(void (^)(NSError *))errorBlock
+{
+    //获取交易流水号
+    self.onReceiptVerificationSucceeded = completionBlock;
+    self.onReceiptVerificationFailed = errorBlock;
+    
+    self.theRequestWM = [WMRequest requestWithAPIID:@"21" andDelegate:self];
+    self.theRequestWM.tag = 21;
+    [self.theRequestWM startAsyncRequest];
+}
+#pragma mark - WMRequest Delegate Methods
+-(void)request:(WMRequest *)theRequest didFailed:(NSError *)theError
+{
+    
+}
+-(void)request:(WMRequest *)theRequest didLoadResultFromJsonString:(id)result
+{
+    if(theRequest.tag == 21){
+    }
+    else if(theRequest.tag == 22){
+    }
+}
+
 @end

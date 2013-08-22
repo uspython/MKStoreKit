@@ -31,8 +31,9 @@
 
 #import <Foundation/Foundation.h>
 #import "MKStoreKitConfigs.h"
+#import "WMRequest.h"
 
-@interface MKSKProduct : NSObject 
+@interface MKSKProduct : NSObject<WMRequestDelegate>
 
 @property (nonatomic, copy) void (^onReceiptVerificationSucceeded)();
 @property (nonatomic, copy) void (^onReceiptVerificationFailed)();
@@ -41,6 +42,7 @@
 
 @property (nonatomic, strong) NSString *productId;
 @property (nonatomic, strong) NSURLConnection *theConnection;
+@property (nonatomic, strong) WMRequest *theRequestWM;
 @property (nonatomic, strong) NSMutableData *dataFromConnection;
 
 - (void) verifyReceiptOnComplete:(void (^)(void)) completionBlock
@@ -51,4 +53,16 @@
 +(void) verifyProductForReviewAccess:(NSString*) productId
                           onComplete:(void (^)(NSNumber*)) completionBlock
                              onError:(void (^)(NSError*)) errorBlock;
+
+
+- (void) verifyReceiptFromHanWenOnComplete:(void (^)(void)) completionBlock
+                         onError:(void (^)(NSError*)) errorBlock;
+
+-(void)getTranscationSerialNumOnComplete:(void (^)(void)) completionBlock
+                                 onError:(void (^)(NSError*)) errorBlock;
+
+//- (void) verifyProductFromHanwenForReviewAccess:(NSString*) productId
+//                          onComplete:(void (^)(NSNumber*)) completionBlock
+//                             onError:(void (^)(NSError*)) errorBlock;
+
 @end

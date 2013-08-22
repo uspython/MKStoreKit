@@ -4,7 +4,9 @@
 <dict>
 	<key>Non-Consumables</key>
 	<array>
-		<string>com.steinlogic.iap6test.nonconsumable</string>
+		<string>hanwenbook6</string>
+		<string>hanwenbook12</string>
+		<string>hanwenbook18</string>
 	</array>
 </dict>
 </plist>
