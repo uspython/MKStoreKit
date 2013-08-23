@@ -93,5 +93,8 @@
 +(void) setObject:(id) object forKey:(NSString*) key;
 +(NSNumber*) numberForKey:(NSString*) key;
 -(void)requestProductIDsFromHanWenOnComplete:(void (^)(NSArray* theProducts))completionBlock
-                                        onError:(void (^)(NSError* error)) errorBlock;;
+                                        onError:(void (^)(NSError* error)) errorBlock;
+-(void)requestProductDataWithProductID:(NSString*)thePID
+                             onComplete:(void (^)(NSArray* theProducts))completionBlock
+                               onError:(void (^)(NSError* error)) errorBlock;
 @end

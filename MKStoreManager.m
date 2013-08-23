@@ -51,6 +51,7 @@
 @interface MKStoreManager () //private methods and properties
 {
     WMRequest* requestWM;
+    NSMutableArray *arrayHanwenProducts;
 }
 
 @property (nonatomic, copy) void (^onTransactionCancelled)();
@@ -186,9 +187,8 @@ static MKStoreManager* _sharedStoreManager;
 #ifdef __IPHONE_6_0
       _sharedStoreManager.hostedContents = [NSMutableArray array];
 #endif
-      [_sharedStoreManager requestProductData];
       [[SKPaymentQueue defaultQueue] addTransactionObserver:_sharedStoreManager];
-      [_sharedStoreManager startVerifyingSubscriptionReceipts];
+      //[_sharedStoreManager startVerifyingSubscriptionReceipts];
     });
     
     if([self iCloudAvailable])
@@ -200,6 +200,13 @@ static MKStoreManager* _sharedStoreManager;
     
   }
   return _sharedStoreManager;
+}
+-(id)init
+{
+    if(self = [super init]){
+        arrayHanwenProducts = [NSMutableArray array];
+    }
+    return self;
 }
 
 #pragma mark Internal MKStoreKit functions
@@ -236,18 +243,20 @@ static MKStoreManager* _sharedStoreManager;
 
 -(void) requestProductData
 {
-  NSMutableArray *productsArray = [NSMutableArray array];
-  NSArray *consumables = [[[MKStoreManager storeKitItems] objectForKey:@"Consumables"] allKeys];
-  NSArray *nonConsumables = [[MKStoreManager storeKitItems] objectForKey:@"Non-Consumables"];
-  NSArray *subscriptions = [[[MKStoreManager storeKitItems] objectForKey:@"Subscriptions"] allKeys];
-  
-  [productsArray addObjectsFromArray:consumables];
-  [productsArray addObjectsFromArray:nonConsumables];
-  [productsArray addObjectsFromArray:subscriptions];
-  
-	self.productsRequest = [[SKProductsRequest alloc] initWithProductIdentifiers:[NSSet setWithArray:productsArray]];
-	self.productsRequest.delegate = self;
-	[self.productsRequest start];
+//  NSMutableArray *productsArray = [NSMutableArray array];
+//  NSArray *consumables = [[[MKStoreManager storeKitItems] objectForKey:@"Consumables"] allKeys];
+//  NSArray *nonConsumables = [[MKStoreManager storeKitItems] objectForKey:@"Non-Consumables"];
+//  NSArray *subscriptions = [[[MKStoreManager storeKitItems] objectForKey:@"Subscriptions"] allKeys];
+//  
+//  [productsArray addObjectsFromArray:consumables];
+//  [productsArray addObjectsFromArray:nonConsumables];
+//  [productsArray addObjectsFromArray:subscriptions];
+    if(arrayHanwenProducts.count!=0){
+        self.productsRequest = [[SKProductsRequest alloc] initWithProductIdentifiers:[NSSet setWithArray:arrayHanwenProducts]];
+        self.productsRequest.delegate = self;
+        [self.productsRequest start];
+    }
+	
 }
 
 +(NSMutableArray*) allProducts {
@@ -298,7 +307,7 @@ static MKStoreManager* _sharedStoreManager;
 - (void)productsRequest:(SKProductsRequest *)request didReceiveResponse:(SKProductsResponse *)response
 {
 	[self.purchasableObjects addObjectsFromArray:response.products];
-	
+	self.onRequestCompleted(self.purchasableObjects);
 #ifndef NDEBUG
 	for(int i=0;i<[self.purchasableObjects count];i++)
 	{
@@ -319,6 +328,7 @@ static MKStoreManager* _sharedStoreManager;
 
 - (void)request:(SKRequest *)request didFailWithError:(NSError *)error
 {
+    self.onRequestFailed(error);
 	self.isProductsAvailable = NO;
   [[NSNotificationCenter defaultCenter] postNotificationName:kProductFetchedNotification
                                                       object:[NSNumber numberWithBool:self.isProductsAvailable]];
@@ -847,6 +857,18 @@ static MKStoreManager* _sharedStoreManager;
     requestWM.tag = 20;
     [requestWM startAsyncRequest];
 }
+-(void)requestProductDataWithProductID:(NSString *)thePID
+                            onComplete:(void (^)(NSArray *))completionBlock
+                               onError:(void (^)(NSError *))errorBlock
+{
+    self.onRequestCompleted = [completionBlock copy];
+    self.onRequestFailed = [errorBlock copy];
+    if([arrayHanwenProducts containsObject:thePID]){
+        [arrayHanwenProducts removeAllObjects];
+        [arrayHanwenProducts addObject:thePID];
+    }
+    [self requestProductData];
+}
 
 
 #pragma mark - WMRequeast Delegate Methods
@@ -858,6 +880,8 @@ static MKStoreManager* _sharedStoreManager;
 {
     if([result objectForKey:@"data"]){
         NSArray* array = [result valueForKeyPath:@"data.products"];
+        [arrayHanwenProducts removeAllObjects];
+        [arrayHanwenProducts addObjectsFromArray:[array valueForKey:@"id"]];
         self.onRequestCompleted(array);
     }
 }
