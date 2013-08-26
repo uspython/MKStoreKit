@@ -35,31 +35,33 @@
 
 @interface MKSKProduct : NSObject<WMRequestDelegate>
 
-@property (nonatomic, copy) void (^onReceiptVerificationSucceeded)();
-@property (nonatomic, copy) void (^onReceiptVerificationFailed)();
+@property (nonatomic, copy) void (^onReceiptVerificationSucceeded)(NSNumber* money);
+@property (nonatomic, copy) void (^onReceiptVerificationFailed)(NSError* error);
+@property (nonatomic, copy) void (^onGetSerialNumSucceeded)(NSString* num);
+@property (nonatomic, copy) void (^onGetSerialNumFailed)();
 
 @property (nonatomic, strong) NSData *receipt;
 
 @property (nonatomic, strong) NSString *productId;
+@property (nonatomic, strong) NSString *serialNum;
 @property (nonatomic, strong) NSURLConnection *theConnection;
 @property (nonatomic, strong) WMRequest *theRequestWM;
 @property (nonatomic, strong) NSMutableData *dataFromConnection;
 
-- (void) verifyReceiptOnComplete:(void (^)(void)) completionBlock
+- (void) verifyReceiptOnComplete:(void (^)(NSNumber*)) completionBlock
                          onError:(void (^)(NSError*)) errorBlock;
 
 -(id) initWithProductId:(NSString*) aProductId receiptData:(NSData*) aReceipt;
+-(id) initWithProductId:(NSString*) aProductId receiptData:(NSData*) aReceipt andSerialNum:(NSString*)aSerial;
 
 +(void) verifyProductForReviewAccess:(NSString*) productId
                           onComplete:(void (^)(NSNumber*)) completionBlock
                              onError:(void (^)(NSError*)) errorBlock;
 
 
-- (void) verifyReceiptFromHanWenOnComplete:(void (^)(void)) completionBlock
+- (void) verifyReceiptFromHanWenOnComplete:(void (^)(NSNumber*)) completionBlock
                          onError:(void (^)(NSError*)) errorBlock;
 
--(void)getTranscationSerialNumOnComplete:(void (^)(void)) completionBlock
-                                 onError:(void (^)(NSError*)) errorBlock;
 
 //- (void) verifyProductFromHanwenForReviewAccess:(NSString*) productId
 //                          onComplete:(void (^)(NSNumber*)) completionBlock

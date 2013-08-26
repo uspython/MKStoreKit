@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>Non-Consumables</key>
+	<key>Consumables</key>
 	<array>
 		<string>hanwenbook6</string>
 		<string>hanwenbook12</string>

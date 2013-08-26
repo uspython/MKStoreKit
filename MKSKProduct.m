@@ -31,8 +31,9 @@
 
 #import "MKSKProduct.h"
 #import "AXSConnect.h"
-
+#import "CAQIUtility.h"
 #import "NSData+MKBase64.h"
+#import "WMUCTranscation.h"
 
 #if ! __has_feature(objc_arc)
 #error MKStoreKit is ARC only. Either turn on ARC for the project or use -fobjc-arc flag
@@ -50,6 +51,7 @@ static NSMutableData *sDataFromConnection;
 
 @interface MKSKProduct ()
 {
+    int retryCount;
 }
 
 @end
@@ -130,8 +132,18 @@ static NSMutableData *sDataFromConnection;
   {
     self.productId = aProductId;
     self.receipt = aReceipt;
+    retryCount = 0;
   }
   return self;
+}
+
+-(id) initWithProductId:(NSString*) aProductId receiptData:(NSData*) aReceipt andSerialNum:(NSString*)aSerial
+{
+    if((self = [self initWithProductId:aProductId receiptData:aReceipt ]))
+    {
+        self.serialNum = aSerial;
+    }
+    return self;
 }
 
 #pragma mark -
@@ -176,7 +188,7 @@ static NSMutableData *sDataFromConnection;
   }
 }
 
-- (void) verifyReceiptOnComplete:(void (^)(void)) completionBlock
+- (void) verifyReceiptOnComplete:(void (^)(NSNumber*)) completionBlock
                          onError:(void (^)(NSError*)) errorBlock
 {
   self.onReceiptVerificationSucceeded = completionBlock;
@@ -211,38 +223,38 @@ static NSMutableData *sDataFromConnection;
 - (void)connection:(NSURLConnection *)connection
 didReceiveResponse:(NSURLResponse *)response
 {	
-  self.dataFromConnection = [NSMutableData data];
+  //self.dataFromConnection = [NSMutableData data];
 }
 
 - (void)connection:(NSURLConnection *)connection
     didReceiveData:(NSData *)data
 {
-	[self.dataFromConnection appendData:data];
+	//[self.dataFromConnection appendData:data];
 }
 
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection
 {
-  NSString *responseString = [[NSString alloc] initWithData:self.dataFromConnection 
-                                                   encoding:NSASCIIStringEncoding];
-  responseString = [responseString stringByTrimmingCharactersInSet:
-                    [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-  self.dataFromConnection = nil;
-	if([responseString isEqualToString:@"YES"])		
-	{
-    if(self.onReceiptVerificationSucceeded)
-    {
-      self.onReceiptVerificationSucceeded();
-      self.onReceiptVerificationSucceeded = nil;
-    }
-	}
-  else
-  {
-    if(self.onReceiptVerificationFailed)
-    {
-      self.onReceiptVerificationFailed(nil);
-      self.onReceiptVerificationFailed = nil;
-    }
-  }
+//  NSString *responseString = [[NSString alloc] initWithData:self.dataFromConnection 
+//                                                   encoding:NSASCIIStringEncoding];
+//  responseString = [responseString stringByTrimmingCharactersInSet:
+//                    [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+//  self.dataFromConnection = nil;
+//	if([responseString isEqualToString:@"YES"])		
+//	{
+//    if(self.onReceiptVerificationSucceeded)
+//    {
+//      self.onReceiptVerificationSucceeded();
+//      self.onReceiptVerificationSucceeded = nil;
+//    }
+//	}
+//  else
+//  {
+//    if(self.onReceiptVerificationFailed)
+//    {
+//      self.onReceiptVerificationFailed(nil);
+//      self.onReceiptVerificationFailed = nil;
+//    }
+//  }
 	
   
 }
@@ -252,12 +264,12 @@ didReceiveResponse:(NSURLResponse *)response
   didFailWithError:(NSError *)error
 {
   
-  self.dataFromConnection = nil;
-  if(self.onReceiptVerificationFailed)
-  {
-    self.onReceiptVerificationFailed(nil);
-    self.onReceiptVerificationFailed = nil;
-  }
+//  self.dataFromConnection = nil;
+//  if(self.onReceiptVerificationFailed)
+//  {
+//    self.onReceiptVerificationFailed(error);
+//    self.onReceiptVerificationFailed = nil;
+//  }
 }
 
 
@@ -331,39 +343,102 @@ didReceiveResponse:(NSURLResponse *)response
 //    }
 //}
 
--(void)verifyReceiptFromHanWenOnComplete:(void (^)(void))completionBlock
+-(void)verifyReceiptFromHanWenOnComplete:(void (^)(NSNumber*))completionBlock
                                  onError:(void (^)(NSError *))errorBlock
 {
     //购买验证
     self.onReceiptVerificationSucceeded = completionBlock;
     self.onReceiptVerificationFailed = errorBlock;
     
-    self.theRequestWM = [WMRequest requestWithAPIID:@"22" andDelegate:self];
-    self.theRequestWM.tag = 22;
-    [self.theRequestWM startAsyncRequest];
-}
--(void)getTranscationSerialNumOnComplete:(void (^)(void))completionBlock
-                                 onError:(void (^)(NSError *))errorBlock
-{
-    //获取交易流水号
-    self.onReceiptVerificationSucceeded = completionBlock;
-    self.onReceiptVerificationFailed = errorBlock;
+    NSString* receipt_serial = [self encodeSerial:self.serialNum andRecipt:[self.receipt base64EncodedString]];
+    WMUCTranscation* daoT = [[WMUCTranscation alloc] init];
+    if(![daoT hasString:receipt_serial])
+        [daoT insertWithDict:@{ @"serial_recipt" : receipt_serial }];
+    //receipt_serial= receipt[0]+serial[0]+receipt[1]+serial[1]+receipt[2]+serial[2]+…
+    //服务器交易校验
+    if([CAQIUtility connectedToNetwork]){
+        retryCount = 0;
+        self.theRequestWM = [WMRequest requestWithAPIID:@"22" andDelegate:self];
+        self.theRequestWM.tag = 22;
+        [self.theRequestWM setPostValue:receipt_serial andParamName:@"receipt_serial"];
+        [self.theRequestWM startAsyncRequest];
+    }else{
+        //NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:23 userInfo:@{@"error":@"网络连接失败, 正在重试"}];
+        sleep(5);
+        ;
+        if(retryCount++ < 3)
+            [self verifyReceiptFromHanWenOnComplete:completionBlock onError:errorBlock];
+        else{
+            WMUCTranscation* daoT = [[WMUCTranscation alloc] init];
+            if(![daoT hasString:receipt_serial])
+                [daoT insertWithDict:@{ @"serial_recipt" : receipt_serial }];
+        }
+    }
     
-    self.theRequestWM = [WMRequest requestWithAPIID:@"21" andDelegate:self];
-    self.theRequestWM.tag = 21;
-    [self.theRequestWM startAsyncRequest];
+
 }
+//-(void)getTranscationSerialNumOnComplete:(void (^)(NSString*))completionBlock
+//                                 onError:(void (^)(NSError *))errorBlock
+//{
+//    //获取交易流水号
+//    self.onGetSerialNumSucceeded = completionBlock;
+//    self.onGetSerialNumFailed = errorBlock;
+//    
+//    self.theRequestWM = [WMRequest requestWithAPIID:@"21" andDelegate:self];
+//    self.theRequestWM.tag = 21;
+//    [self.theRequestWM startAsyncRequest];
+//}
 #pragma mark - WMRequest Delegate Methods
 -(void)request:(WMRequest *)theRequest didFailed:(NSError *)theError
 {
+    NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:22 userInfo:@{@"error":@"验证失败"}];
+    self.onReceiptVerificationFailed(error);
+    self.onReceiptVerificationFailed = nil;
+    
     
 }
 -(void)request:(WMRequest *)theRequest didLoadResultFromJsonString:(id)result
 {
-    if(theRequest.tag == 21){
-    }
-    else if(theRequest.tag == 22){
+    if(theRequest.tag == 22){
+        DLog(@"%@",result);
+        if([result valueForKeyPath:@"data.userinfo.money"]){
+            NSDictionary* d = [result valueForKeyPath:@"data.userinfo"];
+            SJDaoUserData* daoU = [[SJDaoUserData alloc] init];
+            NSString* where = [[NSString alloc] initWithFormat:@"rowid = %@", USERINFO_DEFAULT.shelfNo];
+            [daoU updateWithDict:d where:where];
+            if(self.onReceiptVerificationSucceeded)
+            {
+              self.onReceiptVerificationSucceeded([d valueForKey:@"money"]);
+              self.onReceiptVerificationSucceeded = nil;
+            }
+        }else{
+            NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:22 userInfo:@{@"error":@"验证失败"}];
+            [self request:self.theRequestWM didFailed:error];
+        }
+        
     }
 }
+#pragma mark - Private
+-(NSString*)encodeSerial:(NSString*)serial andRecipt:(NSString*)reciptStr
+{
+    //交叉编码流水号和base64 recipt
+    if(reciptStr.length > serial.length){
+        NSMutableString* tempStr = [[NSMutableString alloc] initWithCapacity: (serial.length + reciptStr.length) ];
+        [reciptStr enumerateSubstringsInRange:NSMakeRange(0, [reciptStr length])
+                                    options:NSStringEnumerationByComposedCharacterSequences | NSStringEnumerationLocalized
+                                 usingBlock:^(NSString *substring, NSRange substringRange, NSRange enclosingRange, BOOL *stop){
+                                     [tempStr appendString:substring];
+                                     if(substringRange.location < serial.length){
+                                         NSString* sStr = [serial substringWithRange:substringRange];
+                                         [tempStr appendString:sStr];
+                                     }
 
+                                 }];
+        DLog(@"serial recipt length:%d", tempStr.length);
+        return tempStr;
+        
+    }else{
+        return @"";
+    }
+}
 @end

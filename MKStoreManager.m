@@ -54,8 +54,8 @@
     NSMutableArray *arrayHanwenProducts;
 }
 
-@property (nonatomic, copy) void (^onTransactionCancelled)();
-@property (nonatomic, copy) void (^onTransactionCompleted)(NSString *productId, NSData* receiptData, NSArray* downloads);
+@property (nonatomic, copy) void (^onTransactionCancelled)(NSError* error);
+@property (nonatomic, copy) void (^onTransactionCompleted)(NSString *productId, NSData* receiptData, NSArray* downloads, NSNumber* money);
 @property (nonatomic, copy) void (^onRequestCompleted)(NSArray* products);
 @property (nonatomic, copy) void (^onRequestFailed)(NSError* error);
 @property (nonatomic, copy) void (^onRestoreFailed)(NSError* error);
@@ -252,7 +252,8 @@ static MKStoreManager* _sharedStoreManager;
 //  [productsArray addObjectsFromArray:nonConsumables];
 //  [productsArray addObjectsFromArray:subscriptions];
     if(arrayHanwenProducts.count!=0){
-        self.productsRequest = [[SKProductsRequest alloc] initWithProductIdentifiers:[NSSet setWithArray:arrayHanwenProducts]];
+        //hanwenbook6
+        self.productsRequest = [[SKProductsRequest alloc] initWithProductIdentifiers:[NSSet  setWithArray:arrayHanwenProducts]];
         self.productsRequest.delegate = self;
         [self.productsRequest start];
     }
@@ -306,6 +307,7 @@ static MKStoreManager* _sharedStoreManager;
 
 - (void)productsRequest:(SKProductsRequest *)request didReceiveResponse:(SKProductsResponse *)response
 {
+    [self.purchasableObjects removeAllObjects];
 	[self.purchasableObjects addObjectsFromArray:response.products];
 	self.onRequestCompleted(self.purchasableObjects);
 #ifndef NDEBUG
@@ -445,13 +447,16 @@ static MKStoreManager* _sharedStoreManager;
 }
 
 - (void) buyFeature:(NSString*) featureId
-         onComplete:(void (^)(NSString*, NSData*, NSArray*)) completionBlock
-        onCancelled:(void (^)(void)) cancelBlock
+         onComplete:(void (^)(NSString*, NSData*, NSArray*,NSNumber*)) completionBlock
+        onCancelled:(void (^)(NSError*)) cancelBlock
 {
   self.onTransactionCompleted = completionBlock;
   self.onTransactionCancelled = cancelBlock;
-  
-    [self addToQueue:featureId];
+    requestWM = [WMRequest requestWithAPIID:@"21" andDelegate:self];
+    requestWM.tag = 21;
+    [requestWM.requestAsiFormRequest setUserInfo:@{@"featureId":featureId}];
+    [requestWM startAsyncRequest] ;
+    //[self addToQueue:featureId];
 //  [MKSKProduct verifyProductForReviewAccess:featureId
 //                                 onComplete:^(NSNumber * isAllowed)
 //   {
@@ -634,7 +639,7 @@ static MKStoreManager* _sharedStoreManager;
        
        [MKStoreManager setObject:receiptData forKey:productIdentifier];
        if(self.onTransactionCompleted)
-         self.onTransactionCompleted(productIdentifier, receiptData, hostedContent);
+         self.onTransactionCompleted(productIdentifier, receiptData, hostedContent, isActive);
      }
                                          onError:^(NSError* error)
      {
@@ -651,7 +656,8 @@ static MKStoreManager* _sharedStoreManager;
       if(!receiptData) {
         if(self.onTransactionCancelled)
         {
-          self.onTransactionCancelled(productIdentifier);
+
+          self.onTransactionCancelled(nil);
         }
         else
         {
@@ -665,31 +671,53 @@ static MKStoreManager* _sharedStoreManager;
       // ping server and get response before serializing the product
       // this is a blocking call to post receipt data to your server
       // it should normally take a couple of seconds on a good 3G connection
-      MKSKProduct *thisProduct = [[MKSKProduct alloc] initWithProductId:productIdentifier receiptData:receiptData];
+        MKSKProduct *thisProduct;
+        if(nil!=self.serialNum && self.serialNum.length!=0 ){
+            thisProduct = [[MKSKProduct alloc] initWithProductId:productIdentifier receiptData:receiptData andSerialNum:self.serialNum];
+        }else{
+            thisProduct = [[MKSKProduct alloc] initWithProductId:productIdentifier receiptData:receiptData];
+        }
       
-      [thisProduct verifyReceiptOnComplete:^
-       {
-         [self rememberPurchaseOfProduct:productIdentifier withReceipt:receiptData];
-         if(self.onTransactionCompleted)
-           self.onTransactionCompleted(productIdentifier, receiptData, hostedContent);
-       }
-                                   onError:^(NSError* error)
-       {
-         if(self.onTransactionCancelled)
-         {
-           self.onTransactionCancelled(productIdentifier);
-         }
-         else
-         {
-           NSLog(@"The receipt could not be verified");
-         }
-       }];
+      
+//      [thisProduct verifyReceiptOnComplete:^
+//       {
+//         [self rememberPurchaseOfProduct:productIdentifier withReceipt:receiptData];
+//         if(self.onTransactionCompleted)
+//           self.onTransactionCompleted(productIdentifier, receiptData, hostedContent);
+//       }
+//                                   onError:^(NSError* error)
+//       {
+//         if(self.onTransactionCancelled)
+//         {
+//           self.onTransactionCancelled(productIdentifier);
+//         }
+//         else
+//         {
+//           NSLog(@"The receipt could not be verified");
+//         }
+//       }];
+        //定制的验证方法
+        [thisProduct verifyReceiptFromHanWenOnComplete:^(NSNumber* money){
+            //[self rememberPurchaseOfProduct:productIdentifier withReceipt:receiptData];
+            if(self.onTransactionCompleted){
+                self.onTransactionCompleted(productIdentifier, receiptData, hostedContent ,money);
+            }
+        } onError:^(NSError* error) {
+            if(self.onTransactionCancelled)
+            {
+                self.onTransactionCancelled(error);
+                self.onTransactionCancelled = nil;
+            }else{
+                NSLog(@"The receipt could not be verified, %@",[error debugDescription]);
+            }
+            
+        }];
     }
     else
     {
       [self rememberPurchaseOfProduct:productIdentifier withReceipt:receiptData];
       if(self.onTransactionCompleted)
-        self.onTransactionCompleted(productIdentifier, receiptData, hostedContent);
+        self.onTransactionCompleted(productIdentifier, receiptData, hostedContent,nil);
     }
   }
 }
@@ -769,8 +797,8 @@ static MKStoreManager* _sharedStoreManager;
 	
   [[SKPaymentQueue defaultQueue] finishTransaction: transaction];
   
-  if(self.onTransactionCancelled)
-    self.onTransactionCancelled();
+//  if(self.onTransactionCancelled)
+//    self.onTransactionCancelled(transaction.error);
 }
 
 - (void) completeTransaction: (SKPaymentTransaction *)transaction
@@ -863,26 +891,49 @@ static MKStoreManager* _sharedStoreManager;
 {
     self.onRequestCompleted = [completionBlock copy];
     self.onRequestFailed = [errorBlock copy];
-    if([arrayHanwenProducts containsObject:thePID]){
-        [arrayHanwenProducts removeAllObjects];
-        [arrayHanwenProducts addObject:thePID];
-    }
+    [arrayHanwenProducts removeAllObjects];
+    [arrayHanwenProducts addObject:thePID];
     [self requestProductData];
 }
+
 
 
 #pragma mark - WMRequeast Delegate Methods
 -(void)request:(WMRequest *)theRequest didFailed:(NSError *)theError
 {
-    self.onRequestFailed(theError);
+    if(theRequest.tag == 21){
+        //无法得到交易流水号, 交易关闭
+        NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:21 userInfo:@{@"error": @"无法获取流水号,交易关闭"}];
+        self.onTransactionCancelled(error);
+        self.onTransactionCancelled = nil;
+    }else if( theRequest.tag == 20) {
+        self.onRequestFailed(theError);
+        self.onRequestFailed = nil;
+    }
+    
 }
 -(void)request:(WMRequest *)theRequest didLoadResultFromJsonString:(id)result
 {
-    if([result objectForKey:@"data"]){
-        NSArray* array = [result valueForKeyPath:@"data.products"];
-        [arrayHanwenProducts removeAllObjects];
-        [arrayHanwenProducts addObjectsFromArray:[array valueForKey:@"id"]];
-        self.onRequestCompleted(array);
+    if(theRequest.tag == 21){
+        //得到交易流水号
+        DLog(@"%@",result);
+        if([result valueForKey:@"data"]){
+            self.serialNum =  [result valueForKeyPath:@"data.serialnum"];
+            NSString* featureId = [[theRequest.requestAsiFormRequest userInfo] objectForKey:@"featureId"];
+            [self addToQueue:featureId];
+        }else{
+            NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:21 userInfo:@{@"error":@"无法获取流水号,交易关闭"}];
+            [self request:theRequest didFailed:error];
+        }
+    }else if( theRequest.tag == 20) {
+        if([result objectForKey:@"data"]){
+            NSArray* array = [result valueForKeyPath:@"data.products"];
+            [arrayHanwenProducts removeAllObjects];
+            [arrayHanwenProducts addObjectsFromArray:[array valueForKey:@"id"]];
+            self.onRequestCompleted(array);
+        }
+
     }
 }
+
 @end

@@ -60,6 +60,7 @@
 + (BOOL) isFeaturePurchased:(NSString*) featureId;
 
 @property (nonatomic, strong) NSMutableArray *purchasableObjects;
+@property (nonatomic, strong) NSString* serialNum;
 @property (nonatomic, strong) NSMutableDictionary *subscriptionProducts;
 #ifdef __IPHONE_6_0
 @property (strong, nonatomic) NSMutableArray *hostedContents;
@@ -72,8 +73,8 @@
 
 // use this method to start a purchase
 - (void) buyFeature:(NSString*) featureId
-         onComplete:(void (^)(NSString* purchasedFeature, NSData*purchasedReceipt, NSArray* availableDownloads)) completionBlock
-        onCancelled:(void (^)(void)) cancelBlock;
+         onComplete:(void (^)(NSString* purchasedFeature, NSData*purchasedReceipt, NSArray* availableDownloads, NSNumber* money)) completionBlock
+        onCancelled:(void (^)(NSError*)) cancelBlock;
 
 // use this method to restore a purchase
 - (void) restorePreviousTransactionsOnComplete:(void (^)(void)) completionBlock
@@ -97,4 +98,6 @@
 -(void)requestProductDataWithProductID:(NSString*)thePID
                              onComplete:(void (^)(NSArray* theProducts))completionBlock
                                onError:(void (^)(NSError* error)) errorBlock;
+-(void)requestHanWenTranscationSerialNumOnComplete:(void (^)(NSArray* theSerialNums))completionBlock
+                                           onError:(void (^)(NSError* error)) errorBlock;
 @end
