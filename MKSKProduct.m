@@ -363,7 +363,7 @@ didReceiveResponse:(NSURLResponse *)response
         [self.theRequestWM setPostValue:receipt_serial andParamName:@"receipt_serial"];
         [self.theRequestWM startAsyncRequest];
     }else{
-        //NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:23 userInfo:@{@"error":@"网络连接失败, 正在重试"}];
+        //NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:23 userInfo:@{ NSLocalizedDescriptionKey:@"网络连接失败, 正在重试"}];
         sleep(5);
         ;
         if(retryCount++ < 3)
@@ -391,7 +391,7 @@ didReceiveResponse:(NSURLResponse *)response
 #pragma mark - WMRequest Delegate Methods
 -(void)request:(WMRequest *)theRequest didFailed:(NSError *)theError
 {
-    NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:22 userInfo:@{@"error":@"验证失败"}];
+    NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:22 userInfo:@{ NSLocalizedDescriptionKey:@"验证失败"}];
     self.onReceiptVerificationFailed(error);
     self.onReceiptVerificationFailed = nil;
     
@@ -412,7 +412,7 @@ didReceiveResponse:(NSURLResponse *)response
               self.onReceiptVerificationSucceeded = nil;
             }
         }else{
-            NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:22 userInfo:@{@"error":@"验证失败"}];
+            NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:22 userInfo:@{ NSLocalizedDescriptionKey : @"验证失败"}];
             [self request:self.theRequestWM didFailed:error];
         }
         

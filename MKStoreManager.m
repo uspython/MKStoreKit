@@ -309,23 +309,29 @@ static MKStoreManager* _sharedStoreManager;
 {
     [self.purchasableObjects removeAllObjects];
 	[self.purchasableObjects addObjectsFromArray:response.products];
-	self.onRequestCompleted(self.purchasableObjects);
+    if(self.purchasableObjects.count == 0){
+        NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:0 userInfo:@{ NSLocalizedDescriptionKey : @"App Store 没有该产品信息"}];
+        [self request:request didFailWithError:error];
+    }else{
+        self.onRequestCompleted(self.purchasableObjects);
 #ifndef NDEBUG
-	for(int i=0;i<[self.purchasableObjects count];i++)
-	{
-		SKProduct *product = [self.purchasableObjects objectAtIndex:i];
-		NSLog(@"Feature: %@, Cost: %f, ID: %@",[product localizedTitle],
-          [[product price] doubleValue], [product productIdentifier]);
-	}
-	
-	for(NSString *invalidProduct in response.invalidProductIdentifiers)
-		NSLog(@"Problem in iTunes connect configuration for product: %@", invalidProduct);
+        for(int i=0;i<[self.purchasableObjects count];i++)
+        {
+            SKProduct *product = [self.purchasableObjects objectAtIndex:i];
+            NSLog(@"Feature: %@, Cost: %f, ID: %@",[product localizedTitle],
+                  [[product price] doubleValue], [product productIdentifier]);
+        }
+        
+        for(NSString *invalidProduct in response.invalidProductIdentifiers)
+            NSLog(@"Problem in iTunes connect configuration for product: %@", invalidProduct);
 #endif
-  
-	self.isProductsAvailable = YES;
-  [[NSNotificationCenter defaultCenter] postNotificationName:kProductFetchedNotification
-                                                      object:[NSNumber numberWithBool:self.isProductsAvailable]];
-	self.productsRequest = nil;
+        
+        self.isProductsAvailable = YES;
+        [[NSNotificationCenter defaultCenter] postNotificationName:kProductFetchedNotification
+                                                            object:[NSNumber numberWithBool:self.isProductsAvailable]];
+        self.productsRequest = nil;
+    }
+	
 }
 
 - (void)request:(SKRequest *)request didFailWithError:(NSError *)error
@@ -797,8 +803,8 @@ static MKStoreManager* _sharedStoreManager;
 	
   [[SKPaymentQueue defaultQueue] finishTransaction: transaction];
   
-//  if(self.onTransactionCancelled)
-//    self.onTransactionCancelled(transaction.error);
+  if(self.onTransactionCancelled)
+    self.onTransactionCancelled(transaction.error);
 }
 
 - (void) completeTransaction: (SKPaymentTransaction *)transaction
@@ -903,7 +909,7 @@ static MKStoreManager* _sharedStoreManager;
 {
     if(theRequest.tag == 21){
         //无法得到交易流水号, 交易关闭
-        NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:21 userInfo:@{@"error": @"无法获取流水号,交易关闭"}];
+        NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:21 userInfo:@{ NSLocalizedDescriptionKey : @"无法获取流水号,交易关闭"}];
         self.onTransactionCancelled(error);
         self.onTransactionCancelled = nil;
     }else if( theRequest.tag == 20) {
@@ -922,7 +928,7 @@ static MKStoreManager* _sharedStoreManager;
             NSString* featureId = [[theRequest.requestAsiFormRequest userInfo] objectForKey:@"featureId"];
             [self addToQueue:featureId];
         }else{
-            NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:21 userInfo:@{@"error":@"无法获取流水号,交易关闭"}];
+            NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:21 userInfo:@{ NSLocalizedDescriptionKey : @"无法获取流水号,交易关闭"}];
             [self request:theRequest didFailed:error];
         }
     }else if( theRequest.tag == 20) {
