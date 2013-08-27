@@ -4,9 +4,12 @@
 <dict>
 	<key>Consumables</key>
 	<array>
-		<string>hanwenbook6</string>
-		<string>hanwenbook12</string>
-		<string>hanwenbook18</string>
+		<string>cn.hanwenbook.charge6</string>
+		<string>cn.hanwenbook.charge12</string>
+		<string>cn.hanwenbook.charge18</string>
+		<string>cn.hanwenbook.charge24</string>
+		<string>cn.hanwenbook.charge30</string>
+		<string>cn.hanwenbook.charge36</string>
 	</array>
 </dict>
 </plist>

@@ -311,7 +311,11 @@ static MKStoreManager* _sharedStoreManager;
 	[self.purchasableObjects addObjectsFromArray:response.products];
     if(self.purchasableObjects.count == 0){
         NSError* error = [[NSError alloc] initWithDomain:@"hanwen" code:0 userInfo:@{ NSLocalizedDescriptionKey : @"App Store 没有该产品信息"}];
+        for(NSString *invalidProduct in response.invalidProductIdentifiers){
+            NSLog(@"Problem in iTunes connect configuration for product: %@", invalidProduct);
+        }
         [self request:request didFailWithError:error];
+        
     }else{
         self.onRequestCompleted(self.purchasableObjects);
 #ifndef NDEBUG
