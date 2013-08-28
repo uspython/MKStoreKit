@@ -191,7 +191,7 @@ static MKStoreManager* _sharedStoreManager;
       //[_sharedStoreManager startVerifyingSubscriptionReceipts];
     });
     
-    if([self iCloudAvailable])
+    if([self iCloudAvailable] && (![self jailbroken]) )
       [[NSNotificationCenter defaultCenter] addObserver:self
                                                selector:@selector(updateFromiCloud:)
                                                    name:NSUbiquitousKeyValueStoreDidChangeExternallyNotification
@@ -200,6 +200,17 @@ static MKStoreManager* _sharedStoreManager;
     
   }
   return _sharedStoreManager;
+}
++(BOOL)jailbroken{
+    FILE* f = fopen("/bin/bash", "r");
+    BOOL isbash = NO;
+    if (f != NULL)
+    {
+        //Device is jailbroken
+        isbash = YES;
+    }
+    fclose(f);
+    return isbash;
 }
 -(id)init
 {
